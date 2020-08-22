@@ -32,6 +32,11 @@ class LossTracker():
         assert name in self.l.keys()
         return np.mean(self.l[name])
 
+    def get_acc(self, name):
+        assert name in ['train_acc', 'val_acc']
+        return sum(b[0] for b in self.l[name]) * 100 / sum(b[1] for b in self.l[name])
+
+
     def reset(self):
         for x in self.l:
             self.l[x] = []
@@ -50,34 +55,42 @@ class CIFAR10Model(pl.LightningModule):
         self.model.fc = nn.Linear(512, 10)
 
         self.criterion = nn.CrossEntropyLoss()
-        self.lt = LossTracker('train_loss', 'val_loss')
+        self.lt = LossTracker('train_loss', 'val_loss', 'train_acc', 'val_acc')
 
     def forward(self, batch):
         imgs, y, _ = batch
         y_hat = self.model(imgs)
         loss = self.criterion(y_hat, y)
-        
-        return loss
+
+        predictions = torch.argmax(output, 1)
+        correct = torch.sum(predictions == y).item()
+        return loss, correct
 
     def training_step(self, batch, batch_idx):
-        loss = self.forward(batch)
+        loss, correct = self.forward(batch)
 
         self.lt.add('train_loss', loss.item())
-        logger_logs = {'avg_train_loss': self.lt.get_mean('train_loss')}
+        self.lt.add('train_acc', (correct.item(), batch.shape[0]))
+        logger_logs = {'avg_train_loss': self.lt.get_mean('train_loss'), 
+                       'running_train_acc': self.lt.get_accuracy('train_acc')}
         output = {
             'loss': loss,
+            'accuracy': correct.item() / batch.shape[0],
             'log': logger_logs
         }
 
         return output
 
     def validation_step(self, batch, batch_idx):
-        loss = self.forward(batch)
+        loss, correct = self.forward(batch)
 
         self.lt.add('val_loss', loss.item())
-        tb_logs = {'avg_val_loss': self.lt.get_mean('val_loss')}
+        self.lt.add('val_acc', (correct.item(), batch.shape[0]))
+        tb_logs = {'avg_val_loss': self.lt.get_mean('val_loss'),
+                   'running_val_acc': self.lt.get_accuracy('val_acc')}
         output = {
             'val_loss': loss,
+            'val_accuracy': correct.item() / batch.shape[0],
             'log': tb_logs
         }
 
@@ -87,7 +100,9 @@ class CIFAR10Model(pl.LightningModule):
 
         # Add Accuracy Tracker
         avg_val_loss = self.lt.get_mean('val_loss')
-        tb_logs = {'val_loss': avg_val_loss}
+        val_acc = self.lt.get_accuracy('val_acc')
+        tb_logs = {'val_loss': avg_val_loss,
+                   'val_accuracy': val_acc}
         self.lt.reset()
 
         return {'val_loss': avg_val_loss, 'log': tb_logs}
