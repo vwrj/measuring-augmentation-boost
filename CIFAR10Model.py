@@ -75,7 +75,7 @@ class CIFAR10Model(pl.LightningModule):
                        'running_train_acc': self.lt.get_accuracy('train_acc')}
         output = {
             'loss': loss,
-            'accuracy': correct.item() / batch.shape[0],
+            'accuracy': correct.item() * 100 / batch.shape[0],
             'log': logger_logs
         }
 
@@ -90,7 +90,7 @@ class CIFAR10Model(pl.LightningModule):
                    'running_val_acc': self.lt.get_accuracy('val_acc')}
         output = {
             'val_loss': loss,
-            'val_accuracy': correct.item() / batch.shape[0],
+            'val_accuracy': correct.item() * 100 / batch.shape[0],
             'log': tb_logs
         }
 
