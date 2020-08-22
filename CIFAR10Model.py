@@ -34,7 +34,7 @@ class LossTracker():
 
     def get_acc(self, name):
         assert name in ['train_acc', 'val_acc']
-        return sum(b[0] for b in self.l[name]) * 100 / sum(b[1] for b in self.l[name])
+        return sum([b[0] for b in self.l[name]]) * 100 / sum([b[1] for b in self.l[name]])
 
 
     def reset(self):
