@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, RandomRotation, RandomHorizontalFlip, \
         RandomApply, ColorJitter, Grayscale, ToTensor, Lambda
 from PIL import Image
+from pl_bolts.datamodules.lightning_datamodule import LightningDataModule
 
 def k2num(s):
     return int(s.split('k')[0]) * 1000
@@ -11,6 +12,48 @@ def k2num(s):
 def id2class(class_idx):
     d = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     return d[class_idx] + '/'
+
+class CIFAR10DataModule(LightningDataModule):
+    def __init__(self):
+        super().__init__()
+        self.root_dir = '/scratch/vr1059/cifar10/data/'
+
+    def train_dataloader(self, augment, size, bs, num_workers=5):
+        '''
+        augment: boolean flag.
+        size: string, such as '1k' or '2k'
+        bs: int, denotes batch size.
+        
+        '''
+        if augment:
+            transform = Compose([
+                ToTensor(),
+            ])
+        else:
+            transform = Compose([
+                RandomRotation(25),
+                RandomHorizontalFlip(),
+                RandomApply([
+                    ColorJitter(brightness = 0.5, contrast = 0.5, saturation = 0.4, hue = (-0.5, 0.5)),
+                    Grayscale(3),
+                ]),
+                ToTensor(),
+            ]) 
+
+        ds = CIFAR10Dataset(self.root_dir, 'train', size, transform=transform) 
+        dl = DataLoader(ds, batch_size=bs, shuffle=True, num_workers=num_workers) 
+
+        return dl
+
+    def val_dataloader(self, size, bs, num_workers=5):
+        transform = Compose([
+            ToTensor(),
+        ])
+
+        ds = CIFAR10Dataset(self.root_dir, 'val', size, transform=transform) 
+        dl = DataLoader(ds, batch_size=bs, shuffle=True, num_workers=num_workers) 
+
+        return dl
 
 
 class CIFAR10Dataset(Dataset):
