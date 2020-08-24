@@ -25,7 +25,7 @@ class CIFAR10DataModule(LightningDataModule):
         bs: int, denotes batch size.
         
         '''
-        if augment:
+        if not augment:
             transform = Compose([
                 ToTensor(),
             ])
