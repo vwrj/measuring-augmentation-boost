@@ -6,6 +6,38 @@ from torchvision.transforms import Compose, RandomRotation, RandomHorizontalFlip
 from PIL import Image
 from pl_bolts.datamodules.lightning_datamodule import LightningDataModule
 
+
+# Assuming channel first
+# Assumptions - image is square, num_pieces is a perfect square
+def jigsaw(img, num_pieces=9):
+    print(type(img))
+    if math.isqrt(num_pieces) ** 2 != num_pieces:
+        print("Please use a perfect square")
+    elif img.shape[-2] != img.shape[-1]:
+        print("Please use a square image")
+    elif img.shape[-2] % math.isqrt(num_pieces) != 0:
+        print("Make sure the image size and number of pieces are compatible")
+    print("Image and num_pieces are compatible")
+    # Pixel size of one patch
+    piece_size = img.shape[1] // math.isqrt(num_pieces)
+    print(piece_size)
+    # List to store patches
+    pieces = []
+    # Extract patches - is there a faster way to do this?
+    for i in range(math.isqrt(num_pieces)):
+        for j in range(math.isqrt(num_pieces)):
+            pieces.append(img[:, piece_size*i:piece_size*(i+1), piece_size*j:piece_size*(j+1)])
+    # Shuffle
+    np.random.shuffle(pieces)
+    # Reassemble
+    new_img = np.zeros(img.shape)
+    idx = 0
+    for i in range(math.isqrt(num_pieces)):
+        for j in range(math.isqrt(num_pieces)):
+            new_img[:, piece_size*i:piece_size*(i+1), piece_size*j:piece_size*(j+1)] = pieces[idx]
+            idx += 1
+    return torch.Tensor(new_img)
+    
 def k2num(s):
     return int(s.split('k')[0]) * 1000
 
