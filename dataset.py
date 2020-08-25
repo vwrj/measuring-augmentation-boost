@@ -5,6 +5,20 @@ from torchvision.transforms import Compose, RandomRotation, RandomHorizontalFlip
         RandomApply, ColorJitter, Grayscale, ToTensor, Lambda
 from PIL import Image
 from pl_bolts.datamodules.lightning_datamodule import LightningDataModule
+from einops import rearrange
+
+
+def improved_jigsaw(img, size=2):
+    # create patches
+    chunk = img.shape[1] // size
+    img = img.unfold(1, chunk, chunk).unfold(2, chunk, chunk)
+    img = rearrange(img, 'c x1 x2 h w -> c (x1 x2) h w')
+    
+    # jigsaw permutation
+    perm = torch.randperm(size ** 2)
+    img = img[:, perm, :, :]
+    img = rearrange(img, 'c (b1 b2) h w -> c (b1 h) (b2 w)', b1=size)
+    return img
 
 
 # Assuming channel first
@@ -70,6 +84,9 @@ class CIFAR10DataModule(LightningDataModule):
                     Grayscale(3),
                 ]),
                 ToTensor(),
+                RandomApply([
+                    Lambda(lambda x: improved_jigsaw(x)),
+                ]), 
             ]) 
 
         ds = CIFAR10Dataset(self.root_dir, 'train', size, transform=transform) 
